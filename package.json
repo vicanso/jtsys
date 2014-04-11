@@ -1,0 +1,13 @@
+{
+  "name": "jtsys",
+  "description": "system moniter",
+  "version": "0.0.1",
+  "main": "dest/index",
+  "dependencies": {
+  },
+  "devDependencies": {
+    "grunt-contrib-clean": "^0.5.0",
+    "grunt-contrib-coffee": "~0.10.1",
+    "grunt-contrib-jshint": "~0.9.2"
+  }
+}

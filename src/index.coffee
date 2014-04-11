@@ -60,12 +60,15 @@ getNetworkInLinux = (cbf) ->
     prevInterfaceInfo = NETWORK_INTERFACE_INFOS[name]
     NETWORK_INTERFACE_INFOS[name] = interfaceInfo
     if prevInterfaceInfo
+      base = (currentTime - prevInterfaceInfo.seconds) * KB
+      getSpeed = (value) ->
+        Math.floor value / base
       {
         name : name
-        receiveSpeed : Math.floor (interfaceInfo.receiveBytes - prevInterfaceInfo.receiveBytes) / KB
+        receiveSpeed : getSpeed interfaceInfo.receiveBytes - prevInterfaceInfo.receiveBytes
         receiveErrs : interfaceInfo.receiveErrs - prevInterfaceInfo.receiveErrs
         receiveDrop : interfaceInfo.receiveDrop - prevInterfaceInfo.receiveDrop
-        transmitSpeed : Math.floor (interfaceInfo.transmitBytes - prevInterfaceInfo.transmitBytes) / KB
+        transmitSpeed : getSpeed interfaceInfo.transmitBytes - prevInterfaceInfo.transmitBytes
         transmitErrs : interfaceInfo.transmitErrs - prevInterfaceInfo.transmitErrs
         transmitDrop : interfaceInfo.transmitDrop - prevInterfaceInfo.transmitDrop
 
@@ -122,7 +125,7 @@ logMemory = ->
   freeMemory = os.freemem()
   userMemory = os.totalmem() - freeMemory
   statsClient.gauge 'freeMemory', Math.floor freeMemory / MB
-  statsClient.gauge 'userMemory', Math.floor userMemory / MB
+  statsClient.gauge 'useMemory', Math.floor userMemory / MB
   if platform == 'linux'
     getSwapUseInLinux (err, swapUse) ->
       if ~swapUse

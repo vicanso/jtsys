@@ -66,7 +66,7 @@
   getNetworkInLinux = function(cbf) {
     var getNetworkInfo, getNetworks;
     getNetworkInfo = function(info) {
-      var currentTime, interfaceInfo, name, prevInterfaceInfo, values;
+      var base, currentTime, getSpeed, interfaceInfo, name, prevInterfaceInfo, values;
       currentTime = Math.floor(Date.now() / 1000);
       values = info.trim().split(/\s+/g);
       name = values[0];
@@ -85,12 +85,16 @@
       prevInterfaceInfo = NETWORK_INTERFACE_INFOS[name];
       NETWORK_INTERFACE_INFOS[name] = interfaceInfo;
       if (prevInterfaceInfo) {
+        base = (currentTime - prevInterfaceInfo.seconds) * KB;
+        getSpeed = function(value) {
+          return Math.floor(value / base);
+        };
         return {
           name: name,
-          receiveSpeed: Math.floor((interfaceInfo.receiveBytes - prevInterfaceInfo.receiveBytes) / KB),
+          receiveSpeed: getSpeed(interfaceInfo.receiveBytes - prevInterfaceInfo.receiveBytes),
           receiveErrs: interfaceInfo.receiveErrs - prevInterfaceInfo.receiveErrs,
           receiveDrop: interfaceInfo.receiveDrop - prevInterfaceInfo.receiveDrop,
-          transmitSpeed: Math.floor((interfaceInfo.transmitBytes - prevInterfaceInfo.transmitBytes) / KB),
+          transmitSpeed: getSpeed(interfaceInfo.transmitBytes - prevInterfaceInfo.transmitBytes),
           transmitErrs: interfaceInfo.transmitErrs - prevInterfaceInfo.transmitErrs,
           transmitDrop: interfaceInfo.transmitDrop - prevInterfaceInfo.transmitDrop
         };
@@ -166,7 +170,7 @@
     freeMemory = os.freemem();
     userMemory = os.totalmem() - freeMemory;
     statsClient.gauge('freeMemory', Math.floor(freeMemory / MB));
-    statsClient.gauge('userMemory', Math.floor(userMemory / MB));
+    statsClient.gauge('useMemory', Math.floor(userMemory / MB));
     if (platform === 'linux') {
       return getSwapUseInLinux(function(err, swapUse) {
         if (~swapUse) {

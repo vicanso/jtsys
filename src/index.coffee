@@ -5,6 +5,8 @@ KB = 1024
 MB = 1024 * KB
 platform = process.platform
 statsClient = null
+spawn = require('child_process').spawn
+
 
 
 ###*
@@ -90,6 +92,31 @@ getNetworkInLinux = (cbf) ->
     else
       cbf null, getNetworks data.trim()
 
+###*
+ * [getDiskInfo 获取disk信息]
+ * @param  {[type]} cbf [description]
+ * @return {[type]}     [description]
+###
+getDiskInfo = (cbf) ->
+  df = spawn 'df', ['-h']
+  getInfo = (info) ->
+    values = info.trim().split /\s+/g
+    size = GLOBAL.parseFloat values[1]
+    if !GLOBAL.isNaN size
+      {
+        size : GLOBAL.parseFloat values[1]
+        avail : GLOBAL.parseFloat values[3]
+        percent : GLOBAL.parseInt values[4]
+        mount : values.pop()
+      }
+  df.stdout.on 'data', (msg)->
+    infos = msg.toString().split '\n'
+    infos.shift()
+    result = []
+    for info in infos
+      tmpInfo = getInfo info
+      result.push tmpInfo if tmpInfo
+    cbf null, result
 
 PREV_CPUS = null
 ###*
@@ -147,6 +174,15 @@ logNetworkInterfaceInfos = ->
           statsClient.gauge "#{name}_transmitSpeed", networkInterfaceInfo.transmitSpeed
           statsClient.count "#{name}_transmitErrs", networkInterfaceInfo.transmitErrs
           statsClient.count "#{name}_transmitDrop", networkInterfaceInfo.transmitDrop
+###*
+ * [logDiskInfos 记录disk相关信息]
+ * @return {[type]} [description]
+###
+logDiskInfos = ->
+  if platform == 'linux' || platform == 'darwin'
+    getDiskInfo (err, infos) ->
+      for info in infos
+        statsClient.gauge "disk_#{info.mount}", info.avail
 
 ###*
  * [setLogClient 设置记录log的client]
@@ -170,5 +206,6 @@ module.exports.start = (interval, options = {}) ->
       logCpus() if options.cpu != false
       logMemory() if options.memory != false
       logNetworkInterfaceInfos() if options.netWork != false
+      logDiskInfos() if options.disk != false
   , interval
   return

@@ -1,5 +1,5 @@
 (function() {
-  var KB, MB, NETWORK_INTERFACE_INFOS, PREV_CPUS, fs, getNetworkInLinux, getSwapUseInLinux, logCpus, logMemory, logNetworkInterfaceInfos, os, platform, program, statsClient, timerId;
+  var KB, MB, NETWORK_INTERFACE_INFOS, PREV_CPUS, fs, getDiskInfo, getNetworkInLinux, getSwapUseInLinux, logCpus, logDiskInfos, logMemory, logNetworkInterfaceInfos, os, platform, program, spawn, statsClient, timerId;
 
   os = require('os');
 
@@ -14,6 +14,8 @@
   platform = process.platform;
 
   statsClient = null;
+
+  spawn = require('child_process').spawn;
 
 
   /**
@@ -121,6 +123,45 @@
     });
   };
 
+
+  /**
+   * [getDiskInfo 获取disk信息]
+   * @param  {[type]} cbf [description]
+   * @return {[type]}     [description]
+   */
+
+  getDiskInfo = function(cbf) {
+    var df, getInfo;
+    df = spawn('df', ['-h']);
+    getInfo = function(info) {
+      var size, values;
+      values = info.trim().split(/\s+/g);
+      size = GLOBAL.parseFloat(values[1]);
+      if (!GLOBAL.isNaN(size)) {
+        return {
+          size: GLOBAL.parseFloat(values[1]),
+          avail: GLOBAL.parseFloat(values[3]),
+          percent: GLOBAL.parseInt(values[4]),
+          mount: values.pop()
+        };
+      }
+    };
+    return df.stdout.on('data', function(msg) {
+      var info, infos, result, tmpInfo, _i, _len;
+      infos = msg.toString().split('\n');
+      infos.shift();
+      result = [];
+      for (_i = 0, _len = infos.length; _i < _len; _i++) {
+        info = infos[_i];
+        tmpInfo = getInfo(info);
+        if (tmpInfo) {
+          result.push(tmpInfo);
+        }
+      }
+      return cbf(null, result);
+    });
+  };
+
   PREV_CPUS = null;
 
 
@@ -212,6 +253,26 @@
 
 
   /**
+   * [logDiskInfos 记录disk相关信息]
+   * @return {[type]} [description]
+   */
+
+  logDiskInfos = function() {
+    if (platform === 'linux' || platform === 'darwin') {
+      return getDiskInfo(function(err, infos) {
+        var info, _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = infos.length; _i < _len; _i++) {
+          info = infos[_i];
+          _results.push(statsClient.gauge("disk_" + info.mount, info.avail));
+        }
+        return _results;
+      });
+    }
+  };
+
+
+  /**
    * [setLogClient 设置记录log的client]
    * @param {[type]} client [description]
    */
@@ -246,7 +307,10 @@
           logMemory();
         }
         if (options.netWork !== false) {
-          return logNetworkInterfaceInfos();
+          logNetworkInterfaceInfos();
+        }
+        if (options.disk !== false) {
+          return logDiskInfos();
         }
       }
     }, interval);

@@ -18,7 +18,27 @@
     prefix: "sys." + (os.hostname()) + "."
   });
 
+  client._send = function() {
+    return console.dir(arguments);
+  };
+
   jtSysMoniter.setLogClient(client);
+
+  jtSysMoniter.filter('network', function(name) {
+    if (name === 'em2') {
+      return false;
+    } else {
+      return true;
+    }
+  });
+
+  jtSysMoniter.filter('disk', function(mount) {
+    if (mount === '/dev') {
+      return false;
+    } else {
+      return true;
+    }
+  });
 
   jtSysMoniter.start(10 * 1000);
 

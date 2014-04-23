@@ -1,5 +1,5 @@
 (function() {
-  var KB, MB, NETWORK_INTERFACE_INFOS, PREV_CPUS, fs, getDiskInfo, getNetworkInLinux, getSwapUseInLinux, logCpus, logDiskInfos, logMemory, logNetworkInterfaceInfos, os, platform, program, spawn, statsClient, timerId;
+  var KB, MB, NETWORK_INTERFACE_INFOS, PREV_CPUS, filterSetting, fs, getDiskInfo, getNetworkInfos, getSwapUsage, logCpus, logDiskInfos, logMemory, logNetworkInterfaceInfos, os, path, platform, program, spawn, statsClient, timerId;
 
   os = require('os');
 
@@ -11,20 +11,24 @@
 
   MB = 1024 * KB;
 
+  path = require('path');
+
   platform = process.platform;
 
   statsClient = null;
 
   spawn = require('child_process').spawn;
 
+  filterSetting = {};
+
 
   /**
-   * [getSwapUseInLinux 获取swap的使用情况，单位MB(只用于linux)]
+   * [getSwapUsage 获取swap的使用情况，单位MB(只用于linux)]
    * @param  {[type]} cbf [description]
    * @return {[type]}     [description]
    */
 
-  getSwapUseInLinux = function(cbf) {
+  getSwapUsage = function(cbf) {
     var getUse;
     getUse = function(data) {
       var info, infos, swapFree, swapFreeStr, swapTotal, swapTotalStr, _i, _len;
@@ -60,12 +64,12 @@
 
 
   /**
-   * [getNetworkInLinux 获取网络信息（只用于linux）]
+   * [getNetworkInfos 获取网络信息（只用于linux）]
    * @param  {[type]} cbf [description]
    * @return {[type]}     [description]
    */
 
-  getNetworkInLinux = function(cbf) {
+  getNetworkInfos = function(cbf) {
     var getNetworkInfo, getNetworks;
     getNetworkInfo = function(info) {
       var base, currentTime, getSpeed, interfaceInfo, name, prevInterfaceInfo, values;
@@ -89,7 +93,7 @@
       if (prevInterfaceInfo) {
         base = (currentTime - prevInterfaceInfo.seconds) * KB;
         getSpeed = function(value) {
-          return Math.floor(value / base);
+          return Math.floor(value / (base || 1));
         };
         return {
           name: name,
@@ -171,7 +175,7 @@
    */
 
   logCpus = function() {
-    var arr, cpuInfo, cpus, cpusTotal, currentCpuTimes, i, idle, prevCpuTimes, sum, total, value, _i, _len;
+    var arr, cpuFilter, cpuInfo, cpus, cpusTotal, currentCpuTimes, i, idle, prevCpuTimes, sum, total, value, _i, _len;
     sum = function(times) {
       var name, total, value;
       total = 0;
@@ -185,13 +189,17 @@
     cpus = os.cpus();
     if (PREV_CPUS) {
       cpusTotal = 0;
+      cpuFilter = filterSetting.cpu;
       for (i = _i = 0, _len = cpus.length; _i < _len; i = ++_i) {
         cpuInfo = cpus[i];
+        if (cpuFilter && false === cpuFilter(i)) {
+          continue;
+        }
         prevCpuTimes = PREV_CPUS[i].times;
         currentCpuTimes = cpuInfo.times;
         total = sum(currentCpuTimes) - sum(prevCpuTimes);
         idle = currentCpuTimes.idle - prevCpuTimes.idle;
-        value = Math.floor(100 * (total - idle) / total);
+        value = Math.floor(100 * (total - idle) / (total / 1));
         cpusTotal += value;
         statsClient.gauge("cpu" + i, value);
       }
@@ -212,13 +220,14 @@
     userMemory = os.totalmem() - freeMemory;
     statsClient.gauge('freeMemory', Math.floor(freeMemory / MB));
     statsClient.gauge('useMemory', Math.floor(userMemory / MB));
-    if (platform === 'linux') {
-      return getSwapUseInLinux(function(err, swapUse) {
-        if (~swapUse) {
-          return statsClient.gauge('swapUse', swapUse);
-        }
-      });
-    }
+    return getSwapUsage(function(err, swapUse) {
+      if (err) {
+        return;
+      }
+      if (~swapUse) {
+        return statsClient.gauge('swapUse', swapUse);
+      }
+    });
   };
 
 
@@ -228,27 +237,28 @@
    */
 
   logNetworkInterfaceInfos = function() {
-    if (platform === 'linux') {
-      return getNetworkInLinux(function(err, networkInterfaceInfos) {
-        var name, networkInterfaceInfo, _i, _len, _results;
-        _results = [];
-        for (_i = 0, _len = networkInterfaceInfos.length; _i < _len; _i++) {
-          networkInterfaceInfo = networkInterfaceInfos[_i];
-          if (networkInterfaceInfo) {
-            name = networkInterfaceInfo.name;
-            statsClient.gauge("" + name + "_receiveSpeed", networkInterfaceInfo.receiveSpeed);
-            statsClient.count("" + name + "_receiveErrs", networkInterfaceInfo.receiveErrs);
-            statsClient.count("" + name + "_receiveDrop", networkInterfaceInfo.receiveDrop);
-            statsClient.gauge("" + name + "_transmitSpeed", networkInterfaceInfo.transmitSpeed);
-            statsClient.count("" + name + "_transmitErrs", networkInterfaceInfo.transmitErrs);
-            _results.push(statsClient.count("" + name + "_transmitDrop", networkInterfaceInfo.transmitDrop));
-          } else {
-            _results.push(void 0);
+    return getNetworkInfos(function(err, networkInterfaceInfos) {
+      var name, networkFilter, networkInterfaceInfo, _i, _len;
+      if (err) {
+        return;
+      }
+      for (_i = 0, _len = networkInterfaceInfos.length; _i < _len; _i++) {
+        networkInterfaceInfo = networkInterfaceInfos[_i];
+        if (networkInterfaceInfo) {
+          networkFilter = filterSetting.network;
+          name = networkInterfaceInfo.name;
+          if (networkFilter && false === networkFilter(name)) {
+            return;
           }
+          statsClient.gauge("" + name + "_receiveSpeed", networkInterfaceInfo.receiveSpeed);
+          statsClient.count("" + name + "_receiveErrs", networkInterfaceInfo.receiveErrs);
+          statsClient.count("" + name + "_receiveDrop", networkInterfaceInfo.receiveDrop);
+          statsClient.gauge("" + name + "_transmitSpeed", networkInterfaceInfo.transmitSpeed);
+          statsClient.count("" + name + "_transmitErrs", networkInterfaceInfo.transmitErrs);
+          statsClient.count("" + name + "_transmitDrop", networkInterfaceInfo.transmitDrop);
         }
-        return _results;
-      });
-    }
+      }
+    });
   };
 
 
@@ -258,17 +268,21 @@
    */
 
   logDiskInfos = function() {
-    if (platform === 'linux' || platform === 'darwin') {
-      return getDiskInfo(function(err, infos) {
-        var info, _i, _len, _results;
-        _results = [];
-        for (_i = 0, _len = infos.length; _i < _len; _i++) {
-          info = infos[_i];
-          _results.push(statsClient.gauge("disk_" + info.mount, info.avail));
+    return getDiskInfo(function(err, infos) {
+      var diskFilter, info, mount, _i, _len;
+      if (err) {
+        return;
+      }
+      for (_i = 0, _len = infos.length; _i < _len; _i++) {
+        info = infos[_i];
+        mount = info.mount;
+        diskFilter = filterSetting.disk;
+        if (diskFilter && false === diskFilter(mount)) {
+          return;
         }
-        return _results;
-      });
-    }
+        statsClient.gauge("diskAvail_" + mount, info.avail);
+      }
+    });
   };
 
 
@@ -292,13 +306,11 @@
    */
 
   module.exports.start = function(interval, options) {
+    var monitorHandler;
     if (options == null) {
       options = {};
     }
-    if (timerId) {
-      GLOBAL.clearInterval(timerId);
-    }
-    timerId = GLOBAL.setInterval(function() {
+    monitorHandler = function() {
       if (statsClient) {
         if (options.cpu !== false) {
           logCpus();
@@ -313,7 +325,26 @@
           return logDiskInfos();
         }
       }
+    };
+    if (timerId) {
+      GLOBAL.clearInterval(timerId);
+    }
+    monitorHandler();
+    timerId = GLOBAL.setInterval(function() {
+      return monitorHandler();
     }, interval);
+  };
+
+
+  /**
+   * [filter 设置filter]
+   * @param  {[type]} type   [description]
+   * @param  {[type]} filter [description]
+   * @return {[type]}        [description]
+   */
+
+  module.exports.filter = function(type, filter) {
+    filterSetting[type] = filter;
   };
 
 }).call(this);

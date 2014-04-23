@@ -3,18 +3,23 @@ fs = require 'fs'
 program = require 'commander'
 KB = 1024
 MB = 1024 * KB
+path = require 'path'
 platform = process.platform
 statsClient = null
 spawn = require('child_process').spawn
+filterSetting = {}
 
-
+# _readFile = fs.readFile
+# fs.readFile = (file, encoding, cbf) ->
+#   file = path.join __dirname, "../#{file}"
+#   _readFile file, encoding, cbf
 
 ###*
- * [getSwapUseInLinux 获取swap的使用情况，单位MB(只用于linux)]
+ * [getSwapUsage 获取swap的使用情况，单位MB(只用于linux)]
  * @param  {[type]} cbf [description]
  * @return {[type]}     [description]
 ###
-getSwapUseInLinux = (cbf) ->
+getSwapUsage = (cbf) ->
   getUse = (data) ->
     infos = data.split '\n'
     swapTotalStr = 'SwapTotal:'
@@ -39,11 +44,11 @@ getSwapUseInLinux = (cbf) ->
 
 NETWORK_INTERFACE_INFOS = {}
 ###*
- * [getNetworkInLinux 获取网络信息（只用于linux）]
+ * [getNetworkInfos 获取网络信息（只用于linux）]
  * @param  {[type]} cbf [description]
  * @return {[type]}     [description]
 ###
-getNetworkInLinux = (cbf) ->
+getNetworkInfos = (cbf) ->
   getNetworkInfo = (info) ->
     currentTime = Math.floor Date.now() / 1000
     values = info.trim().split /\s+/g
@@ -64,7 +69,7 @@ getNetworkInLinux = (cbf) ->
     if prevInterfaceInfo
       base = (currentTime - prevInterfaceInfo.seconds) * KB
       getSpeed = (value) ->
-        Math.floor value / base
+        Math.floor value / (base || 1)
       {
         name : name
         receiveSpeed : getSpeed interfaceInfo.receiveBytes - prevInterfaceInfo.receiveBytes
@@ -133,12 +138,14 @@ logCpus = ->
   cpus = os.cpus()
   if PREV_CPUS
     cpusTotal = 0
+    cpuFilter = filterSetting.cpu
     for cpuInfo, i in cpus
+      continue if cpuFilter && false == cpuFilter i
       prevCpuTimes = PREV_CPUS[i].times
       currentCpuTimes = cpuInfo.times
       total = sum(currentCpuTimes) - sum(prevCpuTimes)
       idle = currentCpuTimes.idle - prevCpuTimes.idle
-      value = Math.floor 100 * (total - idle) / total
+      value = Math.floor 100 * (total - idle) / (total / 1)
       cpusTotal += value
       statsClient.gauge "cpu#{i}", value
     statsClient.gauge 'cpu', Math.floor cpusTotal / cpus.length
@@ -153,36 +160,42 @@ logMemory = ->
   userMemory = os.totalmem() - freeMemory
   statsClient.gauge 'freeMemory', Math.floor freeMemory / MB
   statsClient.gauge 'useMemory', Math.floor userMemory / MB
-  if platform == 'linux'
-    getSwapUseInLinux (err, swapUse) ->
-      if ~swapUse
-        statsClient.gauge 'swapUse', swapUse
+  getSwapUsage (err, swapUse) ->
+    return if err
+    if ~swapUse
+      statsClient.gauge 'swapUse', swapUse
 
 ###*
  * [logNetworkInterfaceInfos 记录networkinterface的状态信息]
  * @return {[type]} [description]
 ###
 logNetworkInterfaceInfos = ->
-  if platform == 'linux'
-    getNetworkInLinux (err, networkInterfaceInfos) ->
-      for networkInterfaceInfo in networkInterfaceInfos
-        if networkInterfaceInfo
-          name = networkInterfaceInfo.name
-          statsClient.gauge "#{name}_receiveSpeed", networkInterfaceInfo.receiveSpeed
-          statsClient.count "#{name}_receiveErrs", networkInterfaceInfo.receiveErrs
-          statsClient.count "#{name}_receiveDrop", networkInterfaceInfo.receiveDrop
-          statsClient.gauge "#{name}_transmitSpeed", networkInterfaceInfo.transmitSpeed
-          statsClient.count "#{name}_transmitErrs", networkInterfaceInfo.transmitErrs
-          statsClient.count "#{name}_transmitDrop", networkInterfaceInfo.transmitDrop
+  getNetworkInfos (err, networkInterfaceInfos) ->
+    return if err
+    for networkInterfaceInfo in networkInterfaceInfos
+      if networkInterfaceInfo
+        networkFilter = filterSetting.network
+        name = networkInterfaceInfo.name
+        return if networkFilter && false == networkFilter name
+
+        statsClient.gauge "#{name}_receiveSpeed", networkInterfaceInfo.receiveSpeed
+        statsClient.count "#{name}_receiveErrs", networkInterfaceInfo.receiveErrs
+        statsClient.count "#{name}_receiveDrop", networkInterfaceInfo.receiveDrop
+        statsClient.gauge "#{name}_transmitSpeed", networkInterfaceInfo.transmitSpeed
+        statsClient.count "#{name}_transmitErrs", networkInterfaceInfo.transmitErrs
+        statsClient.count "#{name}_transmitDrop", networkInterfaceInfo.transmitDrop
 ###*
  * [logDiskInfos 记录disk相关信息]
  * @return {[type]} [description]
 ###
 logDiskInfos = ->
-  if platform == 'linux' || platform == 'darwin'
-    getDiskInfo (err, infos) ->
-      for info in infos
-        statsClient.gauge "disk_#{info.mount}", info.avail
+  getDiskInfo (err, infos) ->
+    return if err
+    for info in infos
+      mount = info.mount
+      diskFilter = filterSetting.disk
+      return if diskFilter && false == diskFilter mount
+      statsClient.gauge "diskAvail_#{mount}", info.avail
 
 ###*
  * [setLogClient 设置记录log的client]
@@ -200,12 +213,25 @@ timerId = null
  * @return {[type]}          [description]
 ###
 module.exports.start = (interval, options = {}) ->
-  GLOBAL.clearInterval timerId if timerId
-  timerId = GLOBAL.setInterval ->
+  monitorHandler = ->
     if statsClient
       logCpus() if options.cpu != false
       logMemory() if options.memory != false
       logNetworkInterfaceInfos() if options.netWork != false
       logDiskInfos() if options.disk != false
+  GLOBAL.clearInterval timerId if timerId
+  monitorHandler()
+  timerId = GLOBAL.setInterval ->
+    monitorHandler()
   , interval
+  return
+
+###*
+ * [filter 设置filter]
+ * @param  {[type]} type   [description]
+ * @param  {[type]} filter [description]
+ * @return {[type]}        [description]
+###
+module.exports.filter = (type, filter) ->
+  filterSetting[type] = filter
   return

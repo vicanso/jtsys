@@ -147,12 +147,12 @@ logCpus = ->
       idle = currentCpuTimes.idle - prevCpuTimes.idle
       value = Math.floor 100 * (total - idle) / (total / 1)
       cpusTotal += value
-      statsClient.gauge "cpu#{i}", value
-    statsClient.gauge 'cpu', Math.floor cpusTotal / cpus.length
+      statsClient.gauge "cpu.#{i}", value
+    statsClient.gauge 'cpu.all', Math.floor cpusTotal / cpus.length
   PREV_CPUS = cpus
   return
 ###*
- * [logMemory 记录内存的使用]
+ * [logMemory 记录内存的使用，单位MB]
  * @return {[type]} [description]
 ###
 logMemory = ->
@@ -166,7 +166,7 @@ logMemory = ->
       statsClient.gauge 'swapUse', swapUse
 
 ###*
- * [logNetworkInterfaceInfos 记录networkinterface的状态信息]
+ * [logNetworkInterfaceInfos 记录networkinterface的状态信息， 单位KB]
  * @return {[type]} [description]
 ###
 logNetworkInterfaceInfos = ->
@@ -178,14 +178,14 @@ logNetworkInterfaceInfos = ->
         name = networkInterfaceInfo.name
         return if networkFilter && false == networkFilter name
 
-        statsClient.gauge "#{name}_receiveSpeed", networkInterfaceInfo.receiveSpeed
-        statsClient.count "#{name}_receiveErrs", networkInterfaceInfo.receiveErrs
-        statsClient.count "#{name}_receiveDrop", networkInterfaceInfo.receiveDrop
-        statsClient.gauge "#{name}_transmitSpeed", networkInterfaceInfo.transmitSpeed
-        statsClient.count "#{name}_transmitErrs", networkInterfaceInfo.transmitErrs
-        statsClient.count "#{name}_transmitDrop", networkInterfaceInfo.transmitDrop
+        statsClient.gauge "#{name}.receiveSpeed", networkInterfaceInfo.receiveSpeed
+        statsClient.count "#{name}.receiveErrs", networkInterfaceInfo.receiveErrs
+        statsClient.count "#{name}.receiveDrop", networkInterfaceInfo.receiveDrop
+        statsClient.gauge "#{name}.transmitSpeed", networkInterfaceInfo.transmitSpeed
+        statsClient.count "#{name}.transmitErrs", networkInterfaceInfo.transmitErrs
+        statsClient.count "#{name}.transmitDrop", networkInterfaceInfo.transmitDrop
 ###*
- * [logDiskInfos 记录disk相关信息]
+ * [logDiskInfos 记录disk相关信息(直接使用df命令的返回数值，不考虑单位)]
  * @return {[type]} [description]
 ###
 logDiskInfos = ->
@@ -195,7 +195,7 @@ logDiskInfos = ->
       mount = info.mount
       diskFilter = filterSetting.disk
       return if diskFilter && false == diskFilter mount
-      statsClient.gauge "diskAvail_#{mount}", info.avail
+      statsClient.gauge "diskAvail.#{mount}", info.avail
 
 ###*
  * [setLogClient 设置记录log的client]

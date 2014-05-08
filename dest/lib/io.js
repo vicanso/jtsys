@@ -27,6 +27,9 @@
     var field, i, info, infos, result, str, tmpResult, value, values, _i, _len;
     infos = data.split('\n');
     str = infos.shift();
+    while (!~str.indexOf('Device:')) {
+      str = infos.shift();
+    }
     if (!ioFields) {
       ioFields = getFields(str);
     }
@@ -34,7 +37,7 @@
     for (_i = 0, _len = infos.length; _i < _len; _i++) {
       info = infos[_i];
       values = info.trim().split(/\s+/g);
-      if (ioFilter && false === ioFilter(values[0])) {
+      if (values.length !== 14 || (ioFilter && false === ioFilter(values[0]))) {
         continue;
       }
       tmpResult = {};
@@ -61,7 +64,7 @@
     iostat.unref();
     return iostat.stdout.on('data', function(msg) {
       var device, field, info, infos, value, _i, _len, _results;
-      infos = getInfos(msg.toString(), ioFilter);
+      infos = getInfos(msg.toString().trim(), ioFilter);
       _results = [];
       for (_i = 0, _len = infos.length; _i < _len; _i++) {
         info = infos[_i];

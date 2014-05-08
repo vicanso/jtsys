@@ -22,12 +22,14 @@ getFields = (str) ->
 getInfos = (data, ioFilter) ->
   infos = data.split '\n'
   str = infos.shift()
+  while !~str.indexOf 'Device:'
+    str = infos.shift()
   if !ioFields
     ioFields = getFields str
   result = []
   for info in infos
     values = info.trim().split /\s+/g
-    continue if ioFilter && false == ioFilter values[0]
+    continue if values.length != 14 || (ioFilter && false == ioFilter values[0])
     tmpResult = {}
     for field, i of ioFields
       if ~i
@@ -44,7 +46,7 @@ exports.log = (client, ioFilter, interval) ->
 
   iostat.stdout.on 'data', (msg) ->
     # msg = mockStr.toString()
-    infos = getInfos msg.toString(), ioFilter
+    infos = getInfos msg.toString().trim(), ioFilter
     for info in infos
       device = info.device
       delete info.device

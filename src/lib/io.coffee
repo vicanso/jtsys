@@ -39,7 +39,7 @@ getInfos = (data, ioFilter) ->
 
 exports.log = (client, ioFilter, interval) ->
   iostat.kill() if iostat
-  iostat = spawn 'iostat', ['-d', Math.floor interval / 1000]
+  iostat = spawn 'iostat', ['-d', '-x', Math.floor interval / 1000]
   iostat.unref()
 
   iostat.stdout.on 'data', (msg) ->

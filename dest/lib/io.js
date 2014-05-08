@@ -57,7 +57,7 @@
     if (iostat) {
       iostat.kill();
     }
-    iostat = spawn('iostat', ['-d', Math.floor(interval / 1000)]);
+    iostat = spawn('iostat', ['-d', '-x', Math.floor(interval / 1000)]);
     iostat.unref();
     return iostat.stdout.on('data', function(msg) {
       var device, field, info, infos, value, _i, _len, _results;

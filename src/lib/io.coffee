@@ -21,10 +21,11 @@ getFields = (str) ->
   result
 getInfos = (data, ioFilter) ->
   infos = data.split '\n'
-  return infos.length < 2
+  return if infos.length < 2
   str = infos.shift()
   while !~str.indexOf 'Device:'
     str = infos.shift()
+    return if !str
   if !ioFields
     ioFields = getFields str
   result = []

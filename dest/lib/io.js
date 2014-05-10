@@ -26,10 +26,15 @@
   getInfos = function(data, ioFilter) {
     var field, i, info, infos, result, str, tmpResult, value, values, _i, _len;
     infos = data.split('\n');
-    return infos.length < 2;
+    if (infos.length < 2) {
+      return;
+    }
     str = infos.shift();
     while (!~str.indexOf('Device:')) {
       str = infos.shift();
+      if (!str) {
+        return;
+      }
     }
     if (!ioFields) {
       ioFields = getFields(str);

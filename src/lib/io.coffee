@@ -21,6 +21,7 @@ getFields = (str) ->
   result
 getInfos = (data, ioFilter) ->
   infos = data.split '\n'
+  return infos.length < 2
   str = infos.shift()
   while !~str.indexOf 'Device:'
     str = infos.shift()
@@ -45,7 +46,8 @@ exports.log = (client, ioFilter, interval) ->
   iostat.unref()
 
   iostat.stdout.on 'data', (msg) ->
-    # msg = mockStr.toString()
+    msg = msg.toString().trim()
+    return if msg.length == 0
     infos = getInfos msg.toString().trim(), ioFilter
     for info in infos
       device = info.device

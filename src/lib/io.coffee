@@ -20,15 +20,16 @@ getFields = (str) ->
     util : names.indexOf '%util'
   result
 getInfos = (data, ioFilter) ->
+
+  result = []
   infos = data.split '\n'
-  return if infos.length < 2
+  return result if infos.length < 2
   str = infos.shift()
   while !~str.indexOf 'Device:'
     str = infos.shift()
-    return if !str
+    return result if !str
   if !ioFields
     ioFields = getFields str
-  result = []
   for info in infos
     values = info.trim().split /\s+/g
     continue if values.length != 14 || (ioFilter && false == ioFilter values[0])

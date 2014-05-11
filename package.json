@@ -1,7 +1,7 @@
 {
   "name": "jtsys",
   "description": "get the system performance",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "main": "dest/index",
   "dependencies": {
   },

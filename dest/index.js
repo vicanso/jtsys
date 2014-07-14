@@ -7,12 +7,15 @@
 
 
   /**
-   * [setLogClient 设置记录log的client]
+   * [client 设置记录log的client]
    * @param {[type]} client [description]
    */
 
-  module.exports.setLogClient = function(client) {
-    statsClient = client;
+  module.exports.client = function(client) {
+    if (client) {
+      statsClient = client;
+    }
+    return statsClient;
   };
 
   timerId = null;

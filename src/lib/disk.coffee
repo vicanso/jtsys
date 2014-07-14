@@ -55,4 +55,4 @@ exports.log = (client, diskFilter) ->
       mountInfos[mount] = 
         avail : avail
         updatedAt : now
-      client.gauge "disk.avail.#{mount}", avail
+      client.gauge "disk.avail.#{mount}", Math.ceil avail / 1024

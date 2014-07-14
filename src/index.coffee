@@ -11,12 +11,12 @@ filterSetting = {}
 
 
 ###*
- * [setLogClient 设置记录log的client]
+ * [client 设置记录log的client]
  * @param {[type]} client [description]
 ###
-module.exports.setLogClient = (client) ->
-  statsClient = client
-  return
+module.exports.client = (client) ->
+  statsClient = client if client
+  statsClient
 
 timerId = null
 ###*

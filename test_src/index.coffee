@@ -30,7 +30,7 @@ describe 'jtSys', ->
         count : ->
           checkFinished()
 
-      jtSys.setLogClient clientMock
+      jtSys.client clientMock
       jtSys.start 20
       setTimeout ->
         jtSys.start 2000 * 1000
@@ -54,5 +54,5 @@ describe 'jtSys', ->
           false
         else
           true
-      jtSys.setLogClient clientMock
+      jtSys.client clientMock
       jtSys.start 20 * 1000

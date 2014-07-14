@@ -43,7 +43,7 @@
             return checkFinished();
           }
         };
-        jtSys.setLogClient(clientMock);
+        jtSys.client(clientMock);
         jtSys.start(20);
         return setTimeout(function() {
           return jtSys.start(2000 * 1000);
@@ -79,7 +79,7 @@
             return true;
           }
         });
-        jtSys.setLogClient(clientMock);
+        jtSys.client(clientMock);
         return jtSys.start(20 * 1000);
       });
     });

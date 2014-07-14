@@ -22,7 +22,7 @@ client = new JTStatsClient {
 
 
 
-jtSys.setLogClient client
+jtSys.client client
 jtSys.filter 'network', (name) ->
   if name == 'em2'
     false

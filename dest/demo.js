@@ -28,7 +28,7 @@
     category: "sys-" + (os.hostname())
   });
 
-  jtSys.setLogClient(client);
+  jtSys.client(client);
 
   jtSys.filter('network', function(name) {
     if (name === 'em2') {

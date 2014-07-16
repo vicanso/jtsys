@@ -51,8 +51,9 @@ exports.log = (client, diskFilter) ->
       if prevMountInfo
         changeSize = prevMountInfo.avail - avail 
         usedTime = now - prevMountInfo.updatedAt
-        client.gauge "disk.writeSpeed.#{mount}", Math.floor changeSize / usedTime
+        client.gauge "disk.writeSpeed.#{mount}", (changeSize / usedTime).toFixed 2
       mountInfos[mount] = 
         avail : avail
         updatedAt : now
-      client.gauge "disk.avail.#{mount}", Math.ceil avail / 1024
+      avail = (avail / 1024).toFixed 2
+      client.gauge "disk.avail.#{mount}", Math.ceil avail

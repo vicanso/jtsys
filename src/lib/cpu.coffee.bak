@@ -13,16 +13,18 @@ exports.log = (client, cpuFilter) ->
   arr = []
   cpus = os.cpus()
   if PREV_CPUS
-    cpusTotal = 0
+    cpuIdleTotal = 0
+    cpuTimesTotal = 0
     for cpuInfo, i in cpus
       continue if cpuFilter && false == cpuFilter i
       prevCpuTimes = PREV_CPUS[i].times
       currentCpuTimes = cpuInfo.times
       total = sum(currentCpuTimes) - sum(prevCpuTimes)
       idle = currentCpuTimes.idle - prevCpuTimes.idle
+      cpuIdleTotal += idle
+      cpuTimesTotal += total
       value = Math.floor 100 * (total - idle) / (total / 1)
-      cpusTotal += value
       client.gauge "cpu.#{i}", value
-    client.gauge 'cpu.all', Math.floor cpusTotal / cpus.length
+    client.gauge 'cpu.all', Math.floor 100 * (cpuTimesTotal - cpuIdleTotal) / (cpuTimesTotal / 1)
   PREV_CPUS = cpus
   return

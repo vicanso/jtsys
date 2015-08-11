@@ -4,7 +4,7 @@ program = require 'commander'
 jtSys = require './index'
 dgram = require 'dgram'
 server = dgram.createSocket 'udp4'
-server.bind '9300'
+server.bind '9400'
 
 server.on 'message', (buf) ->
   console.dir buf.toString()
@@ -16,7 +16,7 @@ do ->
 
 # cpuCheckInterval = 100
 client = new JTStatsClient {
-  port : program.port || '9300'
+  port : program.port || '9400'
   category : "sys-#{os.hostname()}"
 }
 
@@ -34,7 +34,12 @@ jtSys.filter 'disk', (mount) ->
     false
   else
     true
-jtSys.start 10 * 1000
+jtSys.start 3 * 1000, {
+  io : false
+  memory : true
+  disk : false
+  cpu : false
+}
 
 
 

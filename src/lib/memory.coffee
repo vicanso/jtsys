@@ -31,9 +31,11 @@ getSwapUsage = (cbf) ->
 
 exports.log = (client) ->
   freeMemory = os.freemem()
-  userMemory = os.totalmem() - freeMemory
+  totalMemory = os.totalmem()
+  userMemory = totalMemory - freeMemory
   client.gauge 'memory.free', Math.floor freeMemory / MB
   client.gauge 'memory.use', Math.floor userMemory / MB
+  client.gauge 'memory.usageRate', Math.floor 100 * userMemory / totalMemory
   getSwapUsage (err, swapUse) ->
     return if err
     if ~swapUse
